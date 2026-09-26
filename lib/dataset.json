@@ -1,0 +1,387 @@
+[
+  {
+    "id": "NTRO-SEC-001",
+    "checkId": "checkSecurityHeaders",
+    "category": "transport-config",
+    "title": "Missing HTTP Strict-Transport-Security (HSTS) Header",
+    "affectedComponent": "Transport Layer (TLS/HTTPS)",
+    "severity": "high",
+    "referenceScore": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:N (7.4)",
+    "cweId": "CWE-319",
+    "confidence": "confirmed",
+    "description": "The remote web service fails to enforce HTTP Strict-Transport-Security (HSTS). User agents can be coerced into unencrypted HTTP cleartext communication via SSL stripping, protocol downgrade, or adversary-in-the-middle (AitM) interception.",
+    "businessImpact": "Adversaries operating on adjacent networks can intercept administrative sessions, exfiltrate confidential telemetry, and hijack session authentication cookies.",
+    "mitreTactic": "Collection",
+    "mitreTechnique": "T1557 - Adversary-in-the-Middle",
+    "owaspCategory": "A02:2021 - Cryptographic Failures",
+    "nistMapping": "NIST SP 800-53 SC-8 (Transmission Confidentiality and Integrity)",
+    "iso27001": "A.10.1 (Cryptographic Controls)",
+    "evidence": {
+      "probe": "GET / HTTP/1.1",
+      "missingHeader": "Strict-Transport-Security",
+      "serverHeader": "nginx/1.24.0",
+      "connection": "keep-alive"
+    },
+    "pocSteps": "1. Dispatch probe: curl -sI https://target-endpoint | grep -i Strict-Transport-Security\n2. Verify the header is completely missing from response.\n3. Execute SSLstrip proxy on test network: observe connection downgraded to HTTP on port 80.",
+    "remediation": "Deploy HTTP Strict-Transport-Security with minimum 1-year duration and includeSubDomains: Strict-Transport-Security: max-age=31536000; includeSubDomains; preload",
+    "patchSnippet": {
+      "nginx": "add_header Strict-Transport-Security \"max-age=31536000; includeSubDomains; preload\" always;",
+      "express": "app.use(helmet.hsts({ maxAge: 31536000, includeSubDomains: true, preload: true }));",
+      "vulnerableLegacy": "// Missing HSTS configuration\nserver.listen(443);",
+      "securePatched": "// Enforced HSTS middleware\napp.use((req, res, next) => {\n  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');\n  next();\n});"
+    }
+  },
+  {
+    "id": "NTRO-SEC-002",
+    "checkId": "checkSecurityHeaders",
+    "category": "client-config",
+    "title": "Missing Content-Security-Policy (CSP) & Frame Ancestors",
+    "affectedComponent": "Client Browser Context (Root Domain)",
+    "severity": "high",
+    "referenceScore": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N (6.1)",
+    "cweId": "CWE-693",
+    "confidence": "confirmed",
+    "description": "Content-Security-Policy (CSP) is absent. The web application allows inline script execution, unsanitized third-party asset loading, and iframe embedding without frame-ancestors restrictions.",
+    "businessImpact": "Permits stored and reflected Cross-Site Scripting (XSS), clickjacking, token exfiltration through malicious third-party scripts, and DOM manipulation in victim browsers.",
+    "mitreTactic": "Execution",
+    "mitreTechnique": "T1059.007 - JavaScript Execution",
+    "owaspCategory": "A05:2021 - Security Misconfiguration",
+    "nistMapping": "NIST SP 800-53 SI-10 (Information Input Validation)",
+    "iso27001": "A.14.2.5 (Secure System Engineering Principles)",
+    "evidence": {
+      "probe": "GET / HTTP/1.1",
+      "missingHeader": "Content-Security-Policy",
+      "xFrameOptions": "MISSING",
+      "status": 200
+    },
+    "pocSteps": "1. Send GET request to target root endpoint.\n2. Inspect response headers for Content-Security-Policy and X-Frame-Options.\n3. Embed target URL in test <iframe src=\"https://target-endpoint\"></iframe> and confirm embedding succeeds.",
+    "remediation": "Enforce a restrictive Content-Security-Policy specifying trusted script origins and disabling unauthorized iframe framing: Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; frame-ancestors 'none';",
+    "patchSnippet": {
+      "nginx": "add_header Content-Security-Policy \"default-src 'self'; script-src 'self'; frame-ancestors 'none';\" always;",
+      "express": "app.use(helmet.contentSecurityPolicy({ directives: { defaultSrc: [\"'self'\"], frameAncestors: [\"'none'\"] } }));",
+      "vulnerableLegacy": "// Express app without CSP\nconst express = require('express');\nconst app = express();",
+      "securePatched": "// Secure CSP configuration\nconst helmet = require('helmet');\napp.use(helmet.contentSecurityPolicy({\n  directives: {\n    defaultSrc: [\"'self'\"],\n    scriptSrc: [\"'self'\"],\n    frameAncestors: [\"'none'\"]\n  }\n}));"
+    }
+  },
+  {
+    "id": "NTRO-SEC-003",
+    "checkId": "checkCorsConfig",
+    "category": "cors",
+    "title": "Overly Permissive CORS Origin Reflection with Credentials Allowed",
+    "affectedComponent": "REST API Gateway (/api/v1/*)",
+    "severity": "critical",
+    "referenceScore": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:N (8.8)",
+    "cweId": "CWE-942",
+    "confidence": "confirmed",
+    "description": "The API reflects arbitrary client Origin request headers inside Access-Control-Allow-Origin while simultaneously returning Access-Control-Allow-Credentials: true. Malicious sites can issue cross-origin authenticated requests using victim session cookies.",
+    "businessImpact": "Complete confidentiality and integrity failure for authenticated user profiles, bookmarks, credentials, and telemetry streams.",
+    "mitreTactic": "Initial Access",
+    "mitreTechnique": "T1190 - Exploit Public-Facing Application",
+    "owaspCategory": "A01:2021 - Broken Access Control",
+    "nistMapping": "NIST SP 800-53 AC-3 (Access Enforcement)",
+    "iso27001": "A.9.4.2 (Secure Log-on Procedures)",
+    "evidence": {
+      "requestOrigin": "https://adversary-simulated.org",
+      "responseAllowOrigin": "https://adversary-simulated.org",
+      "responseCredentials": "true",
+      "status": 200
+    },
+    "pocSteps": "1. Send OPTIONS request with Origin: https://evil.example.com.\n2. Observe Access-Control-Allow-Origin dynamically reflecting the untrusted origin.\n3. Check for Access-Control-Allow-Credentials: true indicating browser credential sharing.",
+    "remediation": "Do not dynamically reflect Origin headers. Implement a strict, explicit domain whitelist on API gateway CORS middleware and disallow credentials on open endpoints.",
+    "patchSnippet": {
+      "express": "const allowedOrigins = ['https://sentinel.ntro.gov.in'];\napp.use(cors({ origin: (origin, cb) => allowedOrigins.includes(origin) ? cb(null, true) : cb(new Error('CORS')), credentials: true }));",
+      "nginx": "if ($http_origin ~* ^https?:\\/\\/(sentinel\\.ntro\\.gov\\.in)$) {\n  add_header 'Access-Control-Allow-Origin' \"$http_origin\" always;\n  add_header 'Access-Control-Allow-Credentials' 'true' always;\n}",
+      "vulnerableLegacy": "// Vulnerable CORS: Reflecting arbitrary origin\napp.use((req, res, next) => {\n  res.header('Access-Control-Allow-Origin', req.headers.origin);\n  res.header('Access-Control-Allow-Credentials', 'true');\n  next();\n});",
+      "securePatched": "// Strict Whitelist CORS Policy\nconst ALLOWED = ['https://sentinel.ntro.gov.in'];\napp.use((req, res, next) => {\n  const origin = req.headers.origin;\n  if (ALLOWED.includes(origin)) {\n    res.header('Access-Control-Allow-Origin', origin);\n    res.header('Access-Control-Allow-Credentials', 'true');\n  }\n  next();\n});"
+    }
+  },
+  {
+    "id": "NTRO-SEC-004",
+    "checkId": "checkCookieSecurity",
+    "category": "session-handling",
+    "title": "Session Authentication Cookie Missing HttpOnly & SameSite Protection",
+    "affectedComponent": "Session Cookie Manager (/api/auth/*)",
+    "severity": "high",
+    "referenceScore": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:H/I:N/A:N (6.5)",
+    "cweId": "CWE-1004",
+    "confidence": "confirmed",
+    "description": "Authentication token cookies (e.g. `sentinel_session`, `auth_token`) are provisioned without the HttpOnly attribute and with SameSite=None without explicit constraints. Client-side scripts can read session tokens directly via document.cookie.",
+    "businessImpact": "In the event of any XSS vulnerability, adversaries can silently exfiltrate session keys and impersonate government analysts or administrators indefinitely.",
+    "mitreTactic": "Credential Access",
+    "mitreTechnique": "T1539 - Steal Web Session Cookie",
+    "owaspCategory": "A07:2021 - Identification & Authentication Failures",
+    "nistMapping": "NIST SP 800-53 IA-5 (Authenticator Management)",
+    "iso27001": "A.9.4.3 (Password Management System)",
+    "evidence": {
+      "cookieName": "sentinel_session",
+      "setCookieHeader": "sentinel_session=s%3A7a1b...; Path=/; Domain=localhost",
+      "hasHttpOnly": false,
+      "hasSecure": false,
+      "sameSite": "None"
+    },
+    "pocSteps": "1. Complete successful authentication.\n2. Open browser developer tools console and execute: console.log(document.cookie).\n3. Confirm that sentinel_session token value is returned in cleartext JavaScript context.",
+    "remediation": "Append HttpOnly, Secure, and SameSite=Lax (or Strict) to all Set-Cookie directives across authentication and session endpoints.",
+    "patchSnippet": {
+      "express": "res.cookie('sentinel_session', token, { httpOnly: true, secure: true, sameSite: 'strict', maxAge: 28800000 });",
+      "django": "SESSION_COOKIE_HTTPONLY = True\nSESSION_COOKIE_SECURE = True\nSESSION_COOKIE_SAMESITE = 'Strict'",
+      "vulnerableLegacy": "// Insecure session cookie dispatch\nres.cookie('sentinel_session', token, {\n  path: '/'\n});",
+      "securePatched": "// Hardened session cookie attributes\nres.cookie('sentinel_session', token, {\n  httpOnly: true,\n  secure: process.env.NODE_ENV === 'production',\n  sameSite: 'strict',\n  path: '/',\n  maxAge: 8 * 60 * 60 * 1000\n});"
+    }
+  },
+  {
+    "id": "NTRO-SEC-005",
+    "checkId": "checkBOLA",
+    "category": "access-control",
+    "title": "Broken Object Level Authorization (BOLA / IDOR) in Resource API",
+    "affectedComponent": "REST API Resource Endpoint (/api/user/settings/{id})",
+    "severity": "critical",
+    "referenceScore": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:N (8.1)",
+    "cweId": "CWE-639",
+    "confidence": "confirmed",
+    "description": "The endpoint resolves resource identifier parameters directly from user request inputs without verifying that the authenticated user owns or is authorized to manipulate that object. User B successfully accessed and retrieved User A's private security configuration.",
+    "businessImpact": "Allows any standard authenticated account holder to enumerate, inspect, and modify records, keys, and alerts belonging to any other user across the entire organization.",
+    "mitreTactic": "Privilege Escalation",
+    "mitreTechnique": "T1078 - Valid Accounts & Privilege Bypass",
+    "owaspCategory": "OWASP API1:2023 - Broken Object Level Authorization",
+    "nistMapping": "NIST SP 800-53 AC-6 (Least Privilege)",
+    "iso27001": "A.9.4.1 (Information Access Restriction)",
+    "evidence": {
+      "primaryUser": "User A (analyst_alpha)",
+      "resourceId": "res_849204_ntro",
+      "accessorUser": "User B (analyst_bravo)",
+      "endpoint": "/api/user/settings/res_849204_ntro",
+      "httpStatusReturned": 200,
+      "crossUserAccessGranted": true
+    },
+    "pocSteps": "1. Authenticate as User A; note assigned settings resource ID `res_849204_ntro`.\n2. Authenticate as User B; generate valid User B JWT token.\n3. Send GET /api/user/settings/res_849204_ntro with User B Bearer authorization header.\n4. Observe HTTP 200 OK returning User A private telemetry payload.",
+    "remediation": "Validate object ownership on every data lookup: verify that resource.userId === authenticatedSession.userId before query execution or payload delivery.",
+    "patchSnippet": {
+      "prisma": "const record = await prisma.userSettings.findFirst({ where: { id: req.params.id, userId: req.user.id } });\nif (!record) return res.status(403).json({ error: 'Access Denied' });",
+      "express": "if (resource.ownerId !== req.user.id && req.user.role !== 'SYSTEM_ADMIN') {\n  return res.status(403).json({ error: 'Forbidden: Insufficient Object Authorization' });\n}",
+      "vulnerableLegacy": "// Vulnerable IDOR query: blindly trusting client-supplied ID\napp.get('/api/user/settings/:id', async (req, res) => {\n  const data = await db.settings.findById(req.params.id);\n  return res.json(data);\n});",
+      "securePatched": "// Secure object-level ownership verification\napp.get('/api/user/settings/:id', async (req, res) => {\n  const data = await db.settings.findOne({\n    where: { id: req.params.id, userId: req.user.id }\n  });\n  if (!data) return res.status(403).json({ error: 'Forbidden' });\n  return res.json(data);\n});"
+    }
+  },
+  {
+    "id": "NTRO-SEC-006",
+    "checkId": "checkSQLi",
+    "category": "input-handling",
+    "title": "SQL Injection in Search & Telemetry Parameter",
+    "affectedComponent": "Search Engine API (/api/search?q=)",
+    "severity": "critical",
+    "referenceScore": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H (9.8)",
+    "cweId": "CWE-89",
+    "confidence": "confirmed",
+    "description": "User-supplied query parameter input `q` is concatenated directly into internal backend SQL queries. When injected with single-quote `'` or boolean payloads `' OR '1'='1`, the database exposes syntax errors and bypasses query scoping.",
+    "businessImpact": "Adversaries can extract the complete SQL database schema, read administrative credential hashes, alter telemetry tables, or pivot into underlying OS command execution.",
+    "mitreTactic": "Initial Access",
+    "mitreTechnique": "T1190 - Exploit Public-Facing Application (SQLi)",
+    "owaspCategory": "A03:2021 - Injection",
+    "nistMapping": "NIST SP 800-53 SI-10 (Information Input Validation)",
+    "iso27001": "A.14.2.1 (Secure Development Policy)",
+    "evidence": {
+      "endpoint": "/api/search?q=' OR 1=1--",
+      "sqlError": "sqlite_error: near \"OR\": syntax error",
+      "timingAnomalyMs": 1840,
+      "status": 500
+    },
+    "pocSteps": "1. Dispatch GET /api/search?q=%27%20OR%201=1--\n2. Note database syntax error disclosure in response body.\n3. Dispatch timing probe GET /api/search?q=1%20AND%20SLEEP(2)-- and observe delay > 1500ms.",
+    "remediation": "Never concatenate user input into SQL strings. Use parameterized queries, prepared statements, or ORM parameter abstractions (e.g. Prisma Client).",
+    "patchSnippet": {
+      "prisma": "const results = await prisma.telemetry.findMany({ where: { query: { contains: sanitizedQuery } } });",
+      "nodePg": "const result = await pool.query('SELECT * FROM telemetry WHERE label = $1', [userQuery]);",
+      "vulnerableLegacy": "// Vulnerable raw query concatenation\nconst sql = `SELECT * FROM telemetry WHERE label = '${req.query.q}'`;\nconst results = await db.query(sql);",
+      "securePatched": "// Parameterized safe query\nconst results = await db.query(\n  'SELECT * FROM telemetry WHERE label = $1',\n  [req.query.q]\n);"
+    }
+  },
+  {
+    "id": "NTRO-SEC-007",
+    "checkId": "checkInfoLeakage",
+    "category": "api-config",
+    "title": "Backend Infrastructure & Technology Banner Disclosure",
+    "affectedComponent": "Server Response Headers (X-Powered-By / Server)",
+    "severity": "low",
+    "referenceScore": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N (5.3)",
+    "cweId": "CWE-200",
+    "confidence": "confirmed",
+    "description": "HTTP response headers broadcast precise technology versions (Server: Next.js/15.1.4, X-Powered-By: Express/4.18.2). Attackers leverage this information to tailor exploits against known version-specific CVEs.",
+    "businessImpact": "Accelerates attacker reconnaissance and targeting against known zero-day or N-day framework vulnerabilities.",
+    "mitreTactic": "Reconnaissance",
+    "mitreTechnique": "T1592 - Gather Victim Host Information",
+    "owaspCategory": "A05:2021 - Security Misconfiguration",
+    "nistMapping": "NIST SP 800-53 SC-5 (Denial-of-Service Protection)",
+    "iso27001": "A.12.6.1 (Management of Technical Vulnerabilities)",
+    "evidence": {
+      "disclosedHeaders": {
+        "x-powered-by": "Express",
+        "server": "Next.js / Node.js 20.x"
+      }
+    },
+    "pocSteps": "1. Run curl -sI https://target-endpoint | grep -iE 'server|x-powered-by'\n2. Observe technology identifiers broadcasted in cleartext.",
+    "remediation": "Disable `x-powered-by` header across web server configuration and reverse proxy directives (e.g. `app.disable('x-powered-by')`).",
+    "patchSnippet": {
+      "express": "app.disable('x-powered-by');",
+      "nginx": "server_tokens off;",
+      "vulnerableLegacy": "// Default Express initialization reveals framework\nconst app = express();",
+      "securePatched": "// Obfuscated server banners\nconst app = express();\napp.disable('x-powered-by');"
+    }
+  },
+  {
+    "id": "NTRO-SEC-008",
+    "checkId": "checkSecurityHeaders",
+    "category": "client-config",
+    "title": "Missing X-Frame-Options Header (Clickjacking Exposure)",
+    "affectedComponent": "Client Browser Context (Root Application View)",
+    "severity": "medium",
+    "referenceScore": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:N/I:L/A:N (4.3)",
+    "cweId": "CWE-1021",
+    "confidence": "confirmed",
+    "description": "The HTTP X-Frame-Options response header is not enforced on the application root. Without explicit framing protections, malicious web applications can embed this portal inside an iframe or frameset, facilitating clickjacking and credential intercept attacks.",
+    "businessImpact": "Adversaries can trick authenticated operators into performing unauthorized configuration updates or administrative actions.",
+    "mitreTactic": "Initial Access",
+    "mitreTechnique": "T1189 - Drive-by Compromise",
+    "owaspCategory": "A05:2021 - Security Misconfiguration",
+    "nistMapping": "NIST SP 800-53 SI-10 (Information Input Validation)",
+    "iso27001": "A.14.2.5 (Secure System Engineering Principles)",
+    "evidence": {
+      "probe": "GET / HTTP/1.1",
+      "missingHeader": "X-Frame-Options",
+      "status": 200
+    },
+    "pocSteps": "1. Dispatch GET probe to target endpoint.\n2. Inspect response headers: confirm X-Frame-Options is missing.\n3. Embed target in test iframe: document.body.innerHTML = '<iframe src=\"https://target-endpoint\"></iframe>'.",
+    "remediation": "Enforce 'X-Frame-Options: DENY' or 'X-Frame-Options: SAMEORIGIN' across all HTTP response headers.",
+    "patchSnippet": {
+      "express": "app.use(helmet.frameguard({ action: 'deny' }));",
+      "nginx": "add_header X-Frame-Options \"DENY\" always;",
+      "vulnerableLegacy": "// Missing framing protection\nserver.on('request', (req, res) => res.end('Dashboard'));",
+      "securePatched": "// Secure framing enforcement\napp.use((req, res, next) => {\n  res.setHeader('X-Frame-Options', 'DENY');\n  next();\n});"
+    }
+  },
+  {
+    "id": "NTRO-SEC-009",
+    "checkId": "checkSecurityHeaders",
+    "category": "client-config",
+    "title": "Missing X-Content-Type-Options Header (MIME Sniffing Vulnerability)",
+    "affectedComponent": "Content Delivery Gateway (/static/*, /api/*)",
+    "severity": "low",
+    "referenceScore": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:L/I:N/A:N (3.7)",
+    "cweId": "CWE-16",
+    "confidence": "confirmed",
+    "description": "The X-Content-Type-Options header is absent from server responses. User agents may attempt to sniff and deduce the MIME type of downloaded assets, treating non-executable files as HTML or JavaScript.",
+    "businessImpact": "Allows cross-site script execution if untrusted user uploads are rendered directly in the victim browser.",
+    "mitreTactic": "Execution",
+    "mitreTechnique": "T1204 - User Execution",
+    "owaspCategory": "A05:2021 - Security Misconfiguration",
+    "nistMapping": "NIST SP 800-53 SI-11 (Error Handling)",
+    "iso27001": "A.12.1.2 (Change Management)",
+    "evidence": {
+      "probe": "GET /api/v1/telemetry HTTP/1.1",
+      "missingHeader": "X-Content-Type-Options",
+      "status": 200
+    },
+    "pocSteps": "1. Request static or API endpoint.\n2. Verify the response headers omit X-Content-Type-Options: nosniff.\n3. Verify browser attempts content-type sniffing on ambiguous payloads.",
+    "remediation": "Set 'X-Content-Type-Options: nosniff' header across all HTTP responses globally.",
+    "patchSnippet": {
+      "express": "app.use(helmet.noSniff());",
+      "nginx": "add_header X-Content-Type-Options \"nosniff\" always;",
+      "vulnerableLegacy": "// Missing nosniff directive\napp.use(express.static('public'));",
+      "securePatched": "// Hardened MIME handling\napp.use((req, res, next) => {\n  res.setHeader('X-Content-Type-Options', 'nosniff');\n  next();\n});"
+    }
+  },
+  {
+    "id": "NTRO-SEC-010",
+    "checkId": "checkCookieSecurity",
+    "category": "session-handling",
+    "title": "Session Authentication Cookie Missing Secure Flag over Transport",
+    "affectedComponent": "Session Cookie Manager (/api/auth/*)",
+    "severity": "high",
+    "referenceScore": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N (7.5)",
+    "cweId": "CWE-614",
+    "confidence": "confirmed",
+    "description": "The authentication cookie is transmitted without the 'Secure' directive. Browsers will freely dispatch this cookie across unencrypted HTTP links, leaving the session open to interception via protocol downgrade attacks.",
+    "businessImpact": "Adversaries monitoring unencrypted wireless or local area networks can capture cleartext session tokens and hijack analyst sessions.",
+    "mitreTactic": "Credential Access",
+    "mitreTechnique": "T1539 - Steal Web Session Cookie",
+    "owaspCategory": "A07:2021 - Identification & Authentication Failures",
+    "nistMapping": "NIST SP 800-53 IA-5 (Authenticator Management)",
+    "iso27001": "A.9.4.2 (Secure Log-on Procedures)",
+    "evidence": {
+      "cookieName": "sentinel_auth_token",
+      "secureFlagPresent": false,
+      "transport": "HTTP/1.1"
+    },
+    "pocSteps": "1. Send login POST probe to /api/auth.\n2. Observe Set-Cookie header in response.\n3. Note absence of the '; Secure' directive.",
+    "remediation": "Enforce the 'Secure' attribute on all Set-Cookie directives across authentication endpoints.",
+    "patchSnippet": {
+      "express": "res.cookie('token', jwt, { secure: true, httpOnly: true, sameSite: 'strict' });",
+      "django": "SESSION_COOKIE_SECURE = True",
+      "vulnerableLegacy": "// Insecure cookie missing secure attribute\nres.cookie('token', jwt, { httpOnly: true });",
+      "securePatched": "// Secure attribute enforced\nres.cookie('token', jwt, {\n  secure: true,\n  httpOnly: true,\n  sameSite: 'strict'\n});"
+    }
+  },
+  {
+    "id": "NTRO-SEC-011",
+    "checkId": "checkSQLi",
+    "category": "input-handling",
+    "title": "Time-Based Blind SQL Injection in Analytics Parameter",
+    "affectedComponent": "Analytics API Endpoint (/api/telemetry/metrics?filter=)",
+    "severity": "critical",
+    "referenceScore": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H (9.8)",
+    "cweId": "CWE-89",
+    "confidence": "confirmed",
+    "description": "The analytics filtering engine concatenates user-provided query parameters directly into backend database queries. Injection of SQL sleep commands causes deterministic server delay, confirming blind SQL injection.",
+    "businessImpact": "Full database exfiltration, unauthorized modification of audit telemetry records, and potential underlying command execution.",
+    "mitreTactic": "Initial Access",
+    "mitreTechnique": "T1190 - Exploit Public-Facing Application (SQLi)",
+    "owaspCategory": "A03:2021 - Injection",
+    "nistMapping": "NIST SP 800-53 SI-10 (Information Input Validation)",
+    "iso27001": "A.14.2.1 (Secure Development Policy)",
+    "evidence": {
+      "injectionProbe": "1' AND (SELECT 1 FROM (SELECT COUNT(*),CONCAT((SELECT 1),FLOOR(RAND(0)*2))x FROM INFORMATION_SCHEMA.TABLES GROUP BY x)a)--",
+      "baselineResponseTimeMs": 42,
+      "injectedResponseTimeMs": 5080,
+      "timeDeltaMs": 5038
+    },
+    "pocSteps": "1. Send baseline request GET /api/telemetry/metrics?filter=normal (latency ~40ms).\n2. Send injected request with 5s delay payload.\n3. Measure server response time: confirm latency is > 5000ms.",
+    "remediation": "Utilize parameterized queries, prepared statements, or ORM abstractions (e.g. Prisma findMany) exclusively.",
+    "patchSnippet": {
+      "prisma": "const metrics = await prisma.metrics.findMany({ where: { filter: req.query.filter } });",
+      "nodePg": "const result = await pool.query('SELECT * FROM metrics WHERE category = $1', [filter]);",
+      "vulnerableLegacy": "// Vulnerable string concatenation query\nconst sql = `SELECT * FROM metrics WHERE filter = '${req.query.filter}'`;\ndb.query(sql);",
+      "securePatched": "// Parameterized prepared statement\nconst sql = 'SELECT * FROM metrics WHERE filter = $1';\ndb.query(sql, [req.query.filter]);"
+    }
+  },
+  {
+    "id": "NTRO-SEC-012",
+    "checkId": "checkBOLA",
+    "category": "access-control",
+    "title": "Horizontal Tenant Isolation Breach / Cross-User Data Access",
+    "affectedComponent": "Tenant Scope Controller (/api/v1/tenant/{id}/telemetry)",
+    "severity": "critical",
+    "referenceScore": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:N (8.8)",
+    "cweId": "CWE-284",
+    "confidence": "confirmed",
+    "description": "Tenant-scoped resources do not enforce cryptographic tenant membership verification on data lookup requests. An authenticated analyst assigned to Tenant Bravo was able to query and retrieve Tenant Alpha confidential security configurations and network telemetry.",
+    "businessImpact": "Complete loss of multi-tenant isolation, exposing classified organizational threat logs across distinct agency boundaries.",
+    "mitreTactic": "Privilege Escalation",
+    "mitreTechnique": "T1078 - Valid Accounts & Privilege Bypass",
+    "owaspCategory": "OWASP API1:2023 - Broken Object Level Authorization",
+    "nistMapping": "NIST SP 800-53 AC-3 (Access Enforcement)",
+    "iso27001": "A.9.4.1 (Information Access Restriction)",
+    "evidence": {
+      "authenticatedUser": "analyst_bravo",
+      "userTenantId": "tenant_bravo_02",
+      "requestedTenantId": "tenant_alpha_01",
+      "accessAllowed": true,
+      "httpStatus": 200
+    },
+    "pocSteps": "1. Authenticate as User B (Tenant Bravo).\n2. Dispatch GET request to /api/v1/tenant/tenant_alpha_01/telemetry with User B bearer token.\n3. Verify HTTP 200 response containing Tenant Alpha private telemetry stream.",
+    "remediation": "Validate that the authenticated session's tenantId matches the requested resource's tenantId prior to returning any data payload.",
+    "patchSnippet": {
+      "prisma": "const data = await prisma.telemetry.findFirst({ where: { tenantId: req.user.tenantId, id: req.params.id } });\nif (!data) return res.status(403).json({ error: 'Tenant boundary violation' });",
+      "express": "if (req.user.tenantId !== req.params.tenantId) {\n  return res.status(403).json({ error: 'Cross-tenant access forbidden' });\n}",
+      "vulnerableLegacy": "// Blind tenant query without boundary check\napp.get('/api/v1/tenant/:tenantId/telemetry', async (req, res) => {\n  const logs = await db.telemetry.find({ tenantId: req.params.tenantId });\n  res.json(logs);\n});",
+      "securePatched": "// Strict tenant isolation enforcement\napp.get('/api/v1/tenant/:tenantId/telemetry', async (req, res) => {\n  if (req.user.tenantId !== req.params.tenantId) {\n    return res.status(403).json({ error: 'Access Denied: Tenant Boundary Violation' });\n  }\n  const logs = await db.telemetry.find({ tenantId: req.user.tenantId });\n  res.json(logs);\n});"
+    }
+  }
+]

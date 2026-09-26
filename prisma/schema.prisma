@@ -27,6 +27,7 @@ model Finding {
   severity           String   // critical | high | medium | low
   referenceScore     String
   confidence         String   // confirmed | needs-review
+  cweId              String?  // CWE identifier e.g. CWE-89, CWE-639
   evidence           String   // JSON stringified holding actual request(s)/response(s)
   stepsToReproduce   String
   businessImpact     String

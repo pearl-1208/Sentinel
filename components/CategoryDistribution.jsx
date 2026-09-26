@@ -4,11 +4,15 @@ import React from 'react';
 import { Layers } from 'lucide-react';
 
 const CWE_MAP = [
-  { cweId: 'CWE-693', name: 'Protection Mechanism Failure', category: 'Security Headers' },
-  { cweId: 'CWE-942', name: 'Permissive CORS Origin Policy', category: 'CORS Configuration' },
-  { cweId: 'CWE-1004', name: 'Sensitive Cookie Without HttpOnly', category: 'Session Cookies' },
-  { cweId: 'CWE-614', name: 'Sensitive Cookie Without Secure', category: 'Session Cookies' },
-  { cweId: 'CWE-200', name: 'Exposure of Sensitive Information', category: 'Information Disclosure' },
+  { cweId: 'CWE-639', name: 'Broken Object Level Auth (BOLA)', category: 'Access Control' },
+  { cweId: 'CWE-89', name: 'SQL Injection Vulnerability', category: 'Input Handling' },
+  { cweId: 'CWE-1004', name: 'Cookie Missing HttpOnly', category: 'Session Handling' },
+  { cweId: 'CWE-614', name: 'Cookie Missing Secure Flag', category: 'Session Handling' },
+  { cweId: 'CWE-942', name: 'Permissive CORS Origin Policy', category: 'API Security' },
+  { cweId: 'CWE-693', name: 'Missing Content-Security-Policy', category: 'Client Security' },
+  { cweId: 'CWE-319', name: 'Missing HSTS Transport Security', category: 'Transport Layer' },
+  { cweId: 'CWE-1021', name: 'Missing X-Frame-Options', category: 'Client Security' },
+  { cweId: 'CWE-200', name: 'Technology Banner Disclosure', category: 'Information Disclosure' },
 ];
 
 const CategoryDistribution = React.memo(function CategoryDistribution({ findings = [] }) {
