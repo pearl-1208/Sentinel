@@ -125,14 +125,14 @@ export default function Home() {
         } catch (jsonErr) {}
       }
 
-      if (!res.ok || !resData?.success) {
+      if (!res.ok || !resData?.scanId) {
         const errorMsg = 
           resData?.error?.message || 
           (rawText ? rawText.slice(0, 300) : `Server returned HTTP status ${res.status}`);
         throw new Error(errorMsg);
       }
 
-      const { scanId } = resData.data;
+      const { scanId } = resData;
       setScanStatus('running');
 
       const pollInterval = setInterval(async () => {
@@ -146,10 +146,10 @@ export default function Home() {
                 pollData = JSON.parse(checkText);
               } catch (parseErr) {}
             }
-            if (pollData?.success && (pollData.data?.scan?.status === 'done' || pollData.data?.scan?.status === 'failed')) {
+            if (pollData?.scan && (pollData.scan.status === 'done' || pollData.scan.status === 'failed')) {
               clearInterval(pollInterval);
-              setScanData(pollData.data);
-              setScanStatus(pollData.data.scan.status);
+              setScanData(pollData);
+              setScanStatus(pollData.scan.status);
               setLoading(false);
               fetchHistory();
             }
@@ -746,3 +746,6 @@ export default function Home() {
     </div>
   );
 }
+
+
+
