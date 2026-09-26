@@ -132,3 +132,48 @@ body {
 .transition-splash {
   transition: transform 0.75s cubic-bezier(0.77, 0, 0.175, 1), opacity 0.75s ease;
 }
+
+/* Print Styles for Professional Executive PDF Reports */
+@media print {
+  body {
+    background: #000000 !important;
+    color: #ffffff !important;
+    font-size: 11pt;
+  }
+
+  /* Hide interactive controls, header navigation, buttons, and splash loaders */
+  header nav,
+  header button,
+  button,
+  .bg-cyber-grid,
+  .fixed.z-\\[100\\] {
+    display: none !important;
+  }
+
+  header {
+    position: static !important;
+    border-bottom: 2px solid #10b981 !important;
+    background: #000000 !important;
+  }
+
+  main {
+    padding: 0 !important;
+    max-width: 100% !important;
+  }
+
+  .glass-panel, .glass-card {
+    background: #0d1117 !important;
+    border: 1px solid #30363d !important;
+    box-shadow: none !important;
+    break-inside: avoid;
+    margin-bottom: 1.5rem !important;
+  }
+
+  pre {
+    background: #161b22 !important;
+    color: #3fb950 !important;
+    border: 1px solid #30363d !important;
+    white-space: pre-wrap !important;
+    word-break: break-all !important;
+  }
+}
