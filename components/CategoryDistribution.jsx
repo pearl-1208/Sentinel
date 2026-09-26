@@ -19,128 +19,56 @@ const CategoryDistribution = React.memo(function CategoryDistribution({ findings
   const total = Math.max(1, findings.length);
 
   const distribution = CWE_MAP.map((item) => {
-    const count = findings.filter((f) => f.cweId === item.cweId || f.title?.includes(item.category)).length;
+    const count = findings.filter(
+      (f) => f.cweId === item.cweId || f.title?.toLowerCase().includes(item.name.toLowerCase().slice(0, 10))
+    ).length;
     const percentage = Math.round((count / total) * 100);
     return { ...item, count, percentage };
   });
 
   return (
-    <div
-      style={{
-        backgroundColor: '#111827',
-        border: '1px solid #1f2937',
-        borderRadius: '1rem',
-        padding: '1.5rem',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '1rem',
-      }}
-    >
+    <div className="bg-[#0F172A] border border-slate-800/80 rounded-2xl p-6 flex flex-col gap-4">
       {/* Header */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          borderBottom: '1px solid #1f2937',
-          paddingBottom: '0.75rem',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <Layers size={16} color="#10b981" />
-          <h3
-            style={{
-              fontFamily: 'monospace',
-              fontSize: '0.875rem',
-              fontWeight: 700,
-              color: '#fff',
-              textTransform: 'uppercase',
-              letterSpacing: '0.07em',
-              margin: 0,
-            }}
-          >
-            Severity &amp; CWE Classification Matrix
+      <div className="flex items-center justify-between border-b border-slate-800/60 pb-3">
+        <div className="flex items-center gap-2">
+          <Layers className="w-4 h-4 text-emerald-400" />
+          <h3 className="font-mono text-xs font-bold text-white uppercase tracking-wider">
+            Severity & CWE Classification Matrix
           </h3>
         </div>
-        <span
-          style={{
-            fontFamily: 'monospace',
-            fontSize: '0.6875rem',
-            color: '#94a3b8',
-          }}
-        >
+        <span className="font-mono text-[10px] text-slate-500">
           OWASP Top 10 Mapping
         </span>
       </div>
 
       {/* Distribution items */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+      <div className="flex flex-col gap-2.5">
         {distribution.map((item) => (
           <div
             key={item.cweId}
-            style={{
-              padding: '0.875rem',
-              backgroundColor: 'rgba(15,23,42,0.6)',
-              border: '1px solid #1f2937',
-              borderRadius: '0.75rem',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '0.5rem',
-            }}
+            className="p-3 bg-slate-900/60 border border-slate-800/60 rounded-xl flex flex-col gap-2"
           >
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                fontFamily: 'monospace',
-                fontSize: '0.75rem',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <span
-                  style={{
-                    padding: '0.125rem 0.5rem',
-                    borderRadius: '0.25rem',
-                    backgroundColor: 'rgba(16,185,129,0.1)',
-                    color: '#10b981',
-                    border: '1px solid rgba(16,185,129,0.3)',
-                    fontWeight: 700,
-                  }}
-                >
+            <div className="flex items-center justify-between font-mono text-xs">
+              <div className="flex items-center gap-2.5">
+                {/* Clean, plain muted green text without background container */}
+                <span className="text-emerald-400/90 font-medium">
                   {item.cweId}
                 </span>
-                <span style={{ color: '#e2e8f0', fontWeight: 600 }}>{item.name}</span>
+                <span className="text-slate-300 font-medium">{item.name}</span>
               </div>
-              <span
-                style={{
-                  color: item.count > 0 ? '#fbbf24' : '#64748b',
-                  fontWeight: item.count > 0 ? 700 : 400,
-                }}
-              >
-                {item.count} finding(s) ({item.percentage}%)
+              {/* Clean, soft slate gray text */}
+              <span className="text-slate-400 text-[11px]">
+                {item.count} finding{item.count !== 1 ? 's' : ''} ({item.percentage}%)
               </span>
             </div>
-            <div
-              style={{
-                width: '100%',
-                height: '8px',
-                backgroundColor: '#0f172a',
-                borderRadius: '9999px',
-                overflow: 'hidden',
-                border: '1px solid #1f2937',
-              }}
-            >
+
+            {/* Thin, subtle accent bar in desaturated tone */}
+            <div className="w-full h-1.5 bg-slate-950 rounded-full overflow-hidden border border-slate-800/50">
               <div
-                style={{
-                  height: '100%',
-                  width: `${Math.max(3, item.percentage)}%`,
-                  background: item.count > 0
-                    ? 'linear-gradient(to right, #f59e0b, #ef4444)'
-                    : '#1e293b',
-                  borderRadius: '9999px',
-                  transition: 'width 0.5s ease',
-                }}
+                className={`h-full rounded-full transition-all duration-500 ${
+                  item.count > 0 ? 'bg-amber-500/50' : 'bg-slate-800/50'
+                }`}
+                style={{ width: `${Math.max(item.count > 0 ? 4 : 0, item.percentage)}%` }}
               />
             </div>
           </div>

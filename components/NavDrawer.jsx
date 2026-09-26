@@ -4,7 +4,7 @@ import { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   X,
-  Shield,
+  Terminal,
   Radio,
   History,
   Key,
@@ -43,7 +43,7 @@ const NAV_ITEMS = [
   },
   {
     id: 'export',
-    href: '/#executive-report',
+    href: '/report',
     label: 'Executive Report (Audit Export)',
     sublabel: 'CISO-ready audit documentation & PDF export',
     icon: FileText,
@@ -138,7 +138,7 @@ export default function NavDrawer({ isOpen, onClose, activeTab, onNavigate }) {
 
   const handleItemClick = (item) => {
     onClose();
-    if (item.href === '/world-monitor' || item.href === '/vulnerability-matrix') {
+    if (item.href === '/world-monitor' || item.href === '/vulnerability-matrix' || item.href === '/report') {
       if (typeof window !== 'undefined' && window.location.pathname === item.href) {
         return;
       }
@@ -185,11 +185,8 @@ export default function NavDrawer({ isOpen, onClose, activeTab, onNavigate }) {
         {/* Drawer Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800 bg-[#0F172A] shrink-0">
           <div className="flex items-center gap-3">
-            <div className="relative">
-              <div className="p-2 bg-emerald-500/10 border border-emerald-500/25 rounded-lg">
-                <Shield className="w-5 h-5 text-emerald-400" />
-              </div>
-              <div className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-emerald-400 rounded-full animate-ping" />
+            <div className="p-2 bg-emerald-500/10 border border-emerald-500/25 rounded-lg text-emerald-400">
+              <Terminal className="w-5 h-5" />
             </div>
             <div>
               <h2 className="text-sm font-extrabold font-mono text-white tracking-wider">SENTINEL</h2>
